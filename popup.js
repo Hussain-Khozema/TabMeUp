@@ -10,7 +10,6 @@ function msToTime(duration) {
 
     return hours + ":" + minutes + ":" + seconds;
 }
-
 // Function to dynamically load a JavaScript file
 function loadScript(url, callback) {
     const script = document.createElement("script");
@@ -36,7 +35,6 @@ function loadHtml(url, elementId, callback) {
 function switchToTabTracker() {
     document.getElementById("content").style.display = "none";
     document.getElementById("tabTrackerSection").style.display = "block";
-    document.getElementById("backArrow").style.display = "block";
 
     // Save the current view in storage
     chrome.storage.local.set({ currentView: "tabTracker" });
@@ -51,7 +49,6 @@ function switchToTabTracker() {
 function switchToSessionsTracker() {
     document.getElementById("content").style.display = "none";
     document.getElementById("tabTrackerSection").style.display = "none";
-    document.getElementById("backArrow").style.display = "block";
 
     // Load the sessions tracker HTML and script
     loadHtml("sessionsTracker.html", "content", () => {
@@ -68,7 +65,6 @@ function switchToSessionsTracker() {
 // Function to switch to the home menu view
 function switchToHome() {
     document.getElementById("tabTrackerSection").style.display = "none";
-    document.getElementById("backArrow").style.display = "none";
     document.getElementById("content").style.display = "block";
 
     // Load the main menu HTML
