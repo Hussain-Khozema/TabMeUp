@@ -51,7 +51,9 @@ function updatePopupDisplay() {
 
 // Function to close a specific tab
 function closeTab(tabId) {
+    // Remove the tab via chrome API
     chrome.tabs.remove(tabId, () => {
+        // Send a message directly to the background script to update tab times and UI
         chrome.runtime.sendMessage({ action: "removeTab", tabId }, () => {
             // Fetch the updated tabTimes and refresh the UI
             chrome.runtime.sendMessage(

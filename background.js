@@ -79,7 +79,7 @@ chrome.runtime.onConnect.addListener((port) => {
         delete tabTimes[tabId]; // Remove the closed tab from tracking
 
         // Send a message to the popup if it's connected
-        if (popupPort) {
+        if (popupPort && popupPort.sender) {
             popupPort.postMessage({ action: "tabRemoved", tabId });
         }
     });
@@ -101,6 +101,7 @@ chrome.runtime.onConnect.addListener((port) => {
             if (tabTimes[tabId]) {
                 delete tabTimes[tabId];
             }
+            sendResponse(); // Ensure the response is sent back
         } else if (request.action === "getTabTimes") {
             updateActiveTabTime();
             sendResponse({ tabTimes, activeTabId, activeStartTime });
