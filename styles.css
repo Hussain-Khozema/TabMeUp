@@ -5,10 +5,18 @@ body {
     width: 300px;
 }
 
+#mainMenu h3 {
+    text-align: center;
+    background-color: #4caf50;
+    color: white;
+    padding: 10px 0;
+    margin: 0;
+}
+
 #tabTrackerHeader {
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* Align items to the left */
+    justify-content: flex-start; /* Aligns items to the left */
     background-color: #4caf50;
     padding: 10px;
     color: white;

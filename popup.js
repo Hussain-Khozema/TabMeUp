@@ -35,6 +35,7 @@ function loadHtml(url, elementId, callback) {
 function switchToTabTracker() {
     document.getElementById("content").style.display = "none";
     document.getElementById("tabTrackerSection").style.display = "block";
+    document.getElementById("tabTrackerHeader").style.display = "flex";
 
     // Save the current view in storage
     chrome.storage.local.set({ currentView: "tabTracker" });
@@ -49,6 +50,7 @@ function switchToTabTracker() {
 function switchToSessionsTracker() {
     document.getElementById("content").style.display = "none";
     document.getElementById("tabTrackerSection").style.display = "none";
+    document.getElementById("tabTrackerHeader").style.display = "flex";
 
     // Load the sessions tracker HTML and script
     loadHtml("sessionsTracker.html", "content", () => {
@@ -65,10 +67,12 @@ function switchToSessionsTracker() {
 // Function to switch to the home menu view
 function switchToHome() {
     document.getElementById("tabTrackerSection").style.display = "none";
+    document.getElementById("tabTrackerHeader").style.display = "none";
     document.getElementById("content").style.display = "block";
 
     // Load the main menu HTML
     loadHtml("mainMenu.html", "content", () => {
+        console.log("Switched to home menu");
         document
             .getElementById("tabTrackerBtn")
             .addEventListener("click", switchToTabTracker);
@@ -90,8 +94,6 @@ chrome.storage.local.get("currentView", (data) => {
 
     if (currentView === "home") {
         switchToHome();
-    } else if (currentView === "sessionsTracker") {
-        switchToSessionsTracker();
     } else {
         switchToTabTracker();
     }
