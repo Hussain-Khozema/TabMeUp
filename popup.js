@@ -12,16 +12,13 @@ function msToTime(duration) {
 }
 
 // Function to load an HTML file into a div
-function loadHtml(url, elementId) {
+function loadHtml(url, elementId, callback) {
     fetch(url)
         .then((response) => response.text())
         .then((html) => {
             document.getElementById(elementId).innerHTML = html;
 
-            // Attach event listeners after the HTML is loaded
-            document
-                .getElementById("tabTrackerBtn")
-                .addEventListener("click", switchToTabTracker);
+            if (callback) callback(); // Ensure events are bound after loading
         })
         .catch((error) => {
             console.error("Error loading HTML:", error);
@@ -48,6 +45,21 @@ function switchToTabTracker() {
     });
 }
 
+// Function to switch to the sessions tracker view
+function switchToSessionsTracker() {
+    document.getElementById("content").style.display = "none";
+    document.getElementById("tabTrackerSection").style.display = "none";
+    document.getElementById("backArrow").style.display = "block";
+
+    // Load the sessions tracker HTML dynamically
+    loadHtml("sessionsTracker.html", "content", () => {
+        console.log("Sessions Tracker loaded");
+    });
+
+    // Save the current view in storage
+    chrome.storage.local.set({ currentView: "sessionsTracker" });
+}
+
 // Function to switch to the home menu view
 function switchToHome() {
     document.getElementById("tabTrackerSection").style.display = "none";
@@ -55,7 +67,14 @@ function switchToHome() {
     document.getElementById("content").style.display = "block";
 
     // Load the main menu HTML dynamically
-    loadHtml("mainMenu.html", "content");
+    loadHtml("mainMenu.html", "content", () => {
+        document
+            .getElementById("tabTrackerBtn")
+            .addEventListener("click", switchToTabTracker);
+        document
+            .getElementById("sessionsTrackerBtn")
+            .addEventListener("click", switchToSessionsTracker);
+    });
 
     // Save the current view in storage
     chrome.storage.local.set({ currentView: "home" });
@@ -70,12 +89,14 @@ chrome.storage.local.get("currentView", (data) => {
 
     if (currentView === "home") {
         switchToHome();
+    } else if (currentView === "sessionsTracker") {
+        switchToSessionsTracker();
     } else {
         switchToTabTracker();
     }
 });
 
-// Synchronize and display tabs in the popup
+// Synchronize and display tabs in the popup (this part handles the tab tracker as before)
 function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
     const tabsContainer = document.getElementById("tabsContainer");
     tabsContainer.innerHTML = ""; // Clear existing UI
