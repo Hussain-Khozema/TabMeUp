@@ -2,98 +2,110 @@ let tabTimes = {};
 let activeTabId = null;
 let activeStartTime = null;
 
-// Clear tabTimes when the extension starts or is reloaded
-chrome.runtime.onStartup.addListener(() => {
-  tabTimes = {};  // Clear all previously tracked times
-  trackExistingTabs();  // Track currently open tabs
+let popupPort = null; // A variable to store the connection with the popup
+
+// Listen for a connection from popup.js
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "popup") {
+    popupPort = port;
+
+    port.onDisconnect.addListener(() => {
+      popupPort = null; // Reset the popup connection when it's closed
+    });
+  }
 });
 
-// Function to track the time of the active tab
-function updateActiveTabTime() {
-  if (activeTabId !== null && activeStartTime !== null) {
-    const elapsedTime = Date.now() - activeStartTime;
-    if (tabTimes[activeTabId]) {
-      tabTimes[activeTabId].timeSpent += elapsedTime;
-    } else {
-      tabTimes[activeTabId] = { title: "", timeSpent: elapsedTime };
-    }
-    activeStartTime = Date.now();  // Reset the start time for the current active tab
-  }
-}
-
-// Function to update the title of a tab
-function updateTabTitle(tabId) {
-  chrome.tabs.get(tabId, (tab) => {
-    if (tab) {
-      if (tabTimes[tabId]) {
-        tabTimes[tabId].title = tab.title;  // Set the actual title of the tab
+(function () {
+  function updateActiveTabTime() {
+    if (activeTabId !== null && activeStartTime !== null) {
+      const elapsedTime = Date.now() - activeStartTime;
+      if (tabTimes[activeTabId]) {
+        tabTimes[activeTabId].timeSpent += elapsedTime;
       } else {
-        tabTimes[tabId] = { title: tab.title, timeSpent: 0 };
+        tabTimes[activeTabId] = { title: "", timeSpent: elapsedTime };
       }
+      activeStartTime = null; // Reset the start time since the tab is being closed
     }
-  });
-}
+  }
 
-// Function to track existing tabs and their time
-function trackExistingTabs() {
-  chrome.tabs.query({}, function (tabs) {
-    // Clear any old data before tracking
-    tabTimes = {};
-
-    tabs.forEach((tab) => {
-      if (!tabTimes[tab.id]) {
-        tabTimes[tab.id] = { title: tab.title, timeSpent: 0 };
+  function updateTabTitle(tabId) {
+    chrome.tabs.get(tabId, (tab) => {
+      if (tab) {
+        if (tabTimes[tabId]) {
+          tabTimes[tabId].title = tab.title;
+        } else {
+          tabTimes[tabId] = { title: tab.title, timeSpent: 0 };
+        }
       }
     });
+  }
+
+  function trackExistingTabs() {
+    chrome.tabs.query({}, function (tabs) {
+      tabTimes = {};
+      tabs.forEach((tab) => {
+        if (!tabTimes[tab.id]) {
+          tabTimes[tab.id] = { title: tab.title, timeSpent: 0 };
+        }
+      });
+    });
+  }
+
+  chrome.runtime.onStartup.addListener(() => {
+    tabTimes = {};
+    trackExistingTabs();
   });
-}
 
-// Handle tab switching
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  updateActiveTabTime();  // Update the time for the previously active tab
-
-  activeTabId = activeInfo.tabId;
-  activeStartTime = Date.now();  // Start timing for the new active tab
-
-  updateTabTitle(activeTabId);  // Update the title of the newly active tab
-});
-
-// Handle when a tab is updated (e.g., when the title changes or a new tab loads)
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.title) {
-    updateTabTitle(tabId);  // Update the title when a tab's title is available or changes
-  }
-});
-
-// Handle when a tab is removed
-chrome.tabs.onRemoved.addListener((tabId) => {
-  updateActiveTabTime();  // Update time for the tab before it's removed
-  delete tabTimes[tabId];  // Remove it from tracking
-
-  // Notify popup to refresh the UI
-  chrome.runtime.sendMessage({ action: "tabRemoved" });
-});
-
-// Handle when the window loses focus
-chrome.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE && activeTabId !== null && activeStartTime !== null) {
+  chrome.tabs.onActivated.addListener((activeInfo) => {
     updateActiveTabTime();
-    activeStartTime = null;  // Stop tracking time until the window regains focus
-  }
-});
+    activeTabId = activeInfo.tabId;
+    activeStartTime = Date.now();
+    updateTabTitle(activeTabId);
+  });
 
-// Listen for messages from popup.js
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "removeTab") {
-    const tabId = request.tabId;
-    if (tabTimes[tabId]) {
-      delete tabTimes[tabId];  // Remove the tab from background.js' tracking
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.title) {
+      updateTabTitle(tabId);
     }
-  } else if (request.action === "getTabTimes") {
-    updateActiveTabTime();  // Make sure to update the active tab's time before sending data
-    sendResponse({ tabTimes, activeTabId, activeStartTime });
-  }
-});
+  });
 
-// Initialize tracking of existing tabs
-trackExistingTabs();
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    // Update the active tab time if the removed tab is the current active one
+    if (tabId === activeTabId) {
+      updateActiveTabTime();
+      activeTabId = null; // Reset since the active tab is closed
+    }
+
+    delete tabTimes[tabId]; // Remove the closed tab from tracking
+
+    // Send a message to the popup if it's connected
+    if (popupPort) {
+      popupPort.postMessage({ action: "tabRemoved", tabId });
+    }
+  });
+
+  chrome.windows.onFocusChanged.addListener((windowId) => {
+    if (
+      windowId === chrome.windows.WINDOW_ID_NONE &&
+      activeTabId !== null &&
+      activeStartTime !== null
+    ) {
+      updateActiveTabTime();
+      activeStartTime = null;
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "removeTab") {
+      const tabId = request.tabId;
+      if (tabTimes[tabId]) {
+        delete tabTimes[tabId];
+      }
+    } else if (request.action === "getTabTimes") {
+      updateActiveTabTime();
+      sendResponse({ tabTimes, activeTabId, activeStartTime });
+    }
+  });
+
+  trackExistingTabs();
+})();

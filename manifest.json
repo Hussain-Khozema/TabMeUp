@@ -1,17 +1,17 @@
 {
-    "manifest_version": 3,
-    "name": "Tab Time Tracker",
-    "version": "1.0",
-    "description": "Tracks the time spent on each tab",
-    "permissions": ["tabs", "storage"],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "action": {
-      "default_popup": "popup.html"
-    },
-    "icons": {
-      "48": "icon.png"
-    }
+  "manifest_version": 3,
+  "name": "Tab Time Tracker",
+  "version": "1.0",
+  "description": "Tracks the time spent on each tab",
+  "permissions": ["tabs", "storage"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "48": "icon.png"
   }
-  
+}
