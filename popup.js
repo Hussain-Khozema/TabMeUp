@@ -1,0 +1,82 @@
+function msToTime(duration) {
+    let seconds = Math.floor((duration / 1000) % 60),
+      minutes = Math.floor((duration / (1000 * 60)) % 60),
+      hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
+  
+    hours = hours < 10 ? "0" + hours : hours;
+    minutes = minutes < 10 ? "0" + minutes : minutes;
+    seconds = seconds < 10 ? "0" + seconds : seconds;
+  
+    return hours + ":" + minutes + ":" + seconds;
+  }
+  
+  let tabTimes = {};
+  let activeTabId = null;
+  let activeStartTime = null;
+  
+  // Function to update the display
+  function updatePopupDisplay() {
+    const tabsContainer = document.getElementById("tabsContainer");
+    tabsContainer.innerHTML = "";
+  
+    for (let tabId in tabTimes) {
+      const tabInfo = tabTimes[tabId];
+      let timeSpent = tabInfo.timeSpent;
+  
+      // If it's the active tab, calculate the real-time active time
+      if (parseInt(tabId) === activeTabId && activeStartTime !== null) {
+        const elapsedTime = Date.now() - activeStartTime;
+        timeSpent += elapsedTime;
+      }
+  
+      const tabTime = msToTime(timeSpent);
+  
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="tab-info">${tabInfo.title}</td>
+        <td>${tabTime}</td>
+        <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
+      `;
+      tabsContainer.appendChild(row);
+    }
+  
+    // Attach event listeners for the "Close" buttons
+    document.querySelectorAll(".close-btn").forEach((button) => {
+      button.addEventListener("click", function () {
+        const tabId = parseInt(this.getAttribute("data-tabid"));
+        closeTab(tabId);
+      });
+    });
+  }
+  
+  // Function to close a specific tab
+  function closeTab(tabId) {
+    chrome.tabs.remove(tabId, () => {
+      delete tabTimes[tabId];  // Remove the tab from the tracking list
+      updatePopupDisplay();  // Refresh the UI
+    });
+  }
+  
+  // Function to close all tabs
+  function closeAllTabs() {
+    const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
+    chrome.tabs.remove(tabIds, () => {
+      tabTimes = {};  // Clear all tracked tabs
+      updatePopupDisplay();  // Refresh the UI
+    });
+  }
+  
+  // Fetch tab times from the background script and display them
+  chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
+    tabTimes = response.tabTimes;
+    activeTabId = response.activeTabId;
+    activeStartTime = response.activeStartTime;
+    updatePopupDisplay();  // Refresh the UI with the fetched data
+  });
+  
+  // Attach event listener for "Close All Tabs" button
+  document.getElementById("closeAllBtn").addEventListener("click", closeAllTabs);
+  
+  // Set an interval to update the UI every second
+  setInterval(updatePopupDisplay, 1000);
+  
