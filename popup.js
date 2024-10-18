@@ -11,13 +11,20 @@ function msToTime(duration) {
     return hours + ":" + minutes + ":" + seconds;
 }
 
+// Function to dynamically load a JavaScript file
+function loadScript(url, callback) {
+    const script = document.createElement("script");
+    script.src = url;
+    script.onload = callback;
+    document.head.appendChild(script);
+}
+
 // Function to load an HTML file into a div
 function loadHtml(url, elementId, callback) {
     fetch(url)
         .then((response) => response.text())
         .then((html) => {
             document.getElementById(elementId).innerHTML = html;
-
             if (callback) callback(); // Ensure events are bound after loading
         })
         .catch((error) => {
@@ -34,14 +41,9 @@ function switchToTabTracker() {
     // Save the current view in storage
     chrome.storage.local.set({ currentView: "tabTracker" });
 
-    // Fetch the latest tab times when switching to the tracker
-    chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
-        const tabTimes = response.tabTimes || {};
-        synchronizeTabs(
-            tabTimes,
-            response.activeTabId,
-            response.activeStartTime
-        );
+    // Load the tab tracker script
+    loadScript("tabTracker.js", () => {
+        console.log("Tab Tracker script loaded");
     });
 }
 
@@ -51,9 +53,12 @@ function switchToSessionsTracker() {
     document.getElementById("tabTrackerSection").style.display = "none";
     document.getElementById("backArrow").style.display = "block";
 
-    // Load the sessions tracker HTML dynamically
+    // Load the sessions tracker HTML and script
     loadHtml("sessionsTracker.html", "content", () => {
         console.log("Sessions Tracker loaded");
+        loadScript("sessionsTracker.js", () => {
+            console.log("Sessions Tracker script loaded");
+        });
     });
 
     // Save the current view in storage
@@ -66,7 +71,7 @@ function switchToHome() {
     document.getElementById("backArrow").style.display = "none";
     document.getElementById("content").style.display = "block";
 
-    // Load the main menu HTML dynamically
+    // Load the main menu HTML
     loadHtml("mainMenu.html", "content", () => {
         document
             .getElementById("tabTrackerBtn")
@@ -95,93 +100,3 @@ chrome.storage.local.get("currentView", (data) => {
         switchToTabTracker();
     }
 });
-
-// Synchronize and display tabs in the popup (this part handles the tab tracker as before)
-function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
-    const tabsContainer = document.getElementById("tabsContainer");
-    tabsContainer.innerHTML = ""; // Clear existing UI
-
-    if (!tabTimes || Object.keys(tabTimes).length === 0) {
-        tabsContainer.innerHTML =
-            "<tr><td colspan='3'>No tabs being tracked</td></tr>";
-        return;
-    }
-
-    for (let tabId in tabTimes) {
-        const tabInfo = tabTimes[tabId];
-        let timeSpent = tabInfo.timeSpent;
-
-        // If it's the active tab, calculate the real-time active time
-        if (parseInt(tabId) === activeTabId && activeStartTime !== null) {
-            const elapsedTime = Date.now() - activeStartTime;
-            timeSpent += elapsedTime;
-        }
-
-        const tabTime = msToTime(timeSpent);
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-        <td class="tab-info">${tabInfo.title}</td>
-        <td>${tabTime}</td>
-        <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
-    `;
-        tabsContainer.appendChild(row);
-    }
-
-    // Attach event listeners for the "Close" buttons
-    document.querySelectorAll(".close-btn").forEach((button) => {
-        button.addEventListener("click", function () {
-            const tabId = parseInt(this.getAttribute("data-tabid"));
-            closeTab(tabId);
-        });
-    });
-}
-
-// Function to close a specific tab
-function closeTab(tabId) {
-    // Remove the tab via chrome API
-    chrome.tabs.remove(tabId, () => {
-        // Send a message directly to the background script to update tab times and UI
-        chrome.runtime.sendMessage({ action: "removeTab", tabId }, () => {
-            chrome.runtime.sendMessage(
-                { action: "getTabTimes" },
-                (response) => {
-                    const tabTimes = response.tabTimes || {};
-                    synchronizeTabs(
-                        tabTimes,
-                        response.activeTabId,
-                        response.activeStartTime
-                    ); // Refresh the UI
-                }
-            );
-        });
-    });
-}
-
-// Function to close all tabs
-function closeAllTabs() {
-    const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
-    chrome.tabs.remove(tabIds, () => {
-        tabTimes = {}; // Clear all tracked tabs
-        synchronizeTabs({}, null, null); // Refresh the UI
-    });
-}
-
-// Attach event listener for "Close All Tabs" button
-document.getElementById("closeAllBtn").addEventListener("click", closeAllTabs);
-
-// Set an interval to update the UI every second while in the tab tracker
-setInterval(() => {
-    if (
-        document.getElementById("tabTrackerSection").style.display === "block"
-    ) {
-        chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
-            const tabTimes = response.tabTimes || {};
-            synchronizeTabs(
-                tabTimes,
-                response.activeTabId,
-                response.activeStartTime
-            );
-        });
-    }
-}, 1000);
