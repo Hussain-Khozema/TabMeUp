@@ -65,6 +65,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   updateActiveTabTime();  // Update time for the tab before it's removed
   delete tabTimes[tabId];  // Remove it from tracking
+
+  // Notify popup to refresh the UI
+  chrome.runtime.sendMessage({ action: "tabRemoved" });
 });
 
 // Handle when the window loses focus
@@ -75,9 +78,14 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
   }
 });
 
-// Send tab times and active tab data to the popup
+// Listen for messages from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "getTabTimes") {
+  if (request.action === "removeTab") {
+    const tabId = request.tabId;
+    if (tabTimes[tabId]) {
+      delete tabTimes[tabId];  // Remove the tab from background.js' tracking
+    }
+  } else if (request.action === "getTabTimes") {
     updateActiveTabTime();  // Make sure to update the active tab's time before sending data
     sendResponse({ tabTimes, activeTabId, activeStartTime });
   }
