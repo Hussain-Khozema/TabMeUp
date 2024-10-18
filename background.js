@@ -17,6 +17,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
 (function () {
     function updateActiveTabTime() {
+        console.log("updateActiveTabTime", activeTabId, activeStartTime);
         if (activeTabId !== null && activeStartTime !== null) {
             const elapsedTime = Date.now() - activeStartTime;
             if (tabTimes[activeTabId]) {
@@ -24,7 +25,8 @@ chrome.runtime.onConnect.addListener((port) => {
             } else {
                 tabTimes[activeTabId] = { title: "", timeSpent: elapsedTime };
             }
-            activeStartTime = null; // Reset the start time since the tab is being closed
+            // Reset activeStartTime to Date.now() when tracking the same tab's time
+            activeStartTime = Date.now();
         }
     }
 
@@ -42,25 +44,29 @@ chrome.runtime.onConnect.addListener((port) => {
 
     function trackExistingTabs() {
         chrome.tabs.query({}, function (tabs) {
-            tabTimes = {};
             tabs.forEach((tab) => {
                 if (!tabTimes[tab.id]) {
                     tabTimes[tab.id] = { title: tab.title, timeSpent: 0 };
                 }
             });
+            console.log(tabTimes);
         });
     }
 
     chrome.runtime.onStartup.addListener(() => {
-        tabTimes = {};
+        console.log("Extension started/restarted");
         trackExistingTabs();
     });
 
     chrome.tabs.onActivated.addListener((activeInfo) => {
+        // Before switching, save the time spent on the previous tab
         updateActiveTabTime();
+        // Set the new active tab ID and start tracking its time
         activeTabId = activeInfo.tabId;
-        activeStartTime = Date.now();
+        activeStartTime = Date.now(); // Reset the start time for the new tab
+        // Optionally update the title for the new active tab
         updateTabTitle(activeTabId);
+        console.log("After switching active tab", tabTimes);
     });
 
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -85,13 +91,20 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 
     chrome.windows.onFocusChanged.addListener((windowId) => {
+        // If no window is active (WINDOW_ID_NONE), stop tracking the active tab's time
         if (
             windowId === chrome.windows.WINDOW_ID_NONE &&
             activeTabId !== null &&
             activeStartTime !== null
         ) {
-            updateActiveTabTime();
-            activeStartTime = null;
+            updateActiveTabTime(); // Update the time for the currently active tab
+            activeStartTime = null; // Stop tracking since the window is not in focus
+        } else if (
+            windowId !== chrome.windows.WINDOW_ID_NONE &&
+            activeTabId !== null
+        ) {
+            // When the window regains focus, restart the timer for the active tab
+            activeStartTime = Date.now();
         }
     });
 
