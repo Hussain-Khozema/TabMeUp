@@ -1,3 +1,4 @@
+// Function to convert milliseconds to HH:MM:SS
 function msToTime(duration) {
     let seconds = Math.floor((duration / 1000) % 60),
         minutes = Math.floor((duration / (1000 * 60)) % 60),
@@ -10,14 +11,65 @@ function msToTime(duration) {
     return hours + ":" + minutes + ":" + seconds;
 }
 
-let tabTimes = {};
-let activeTabId = null;
-let activeStartTime = null;
+// Function to switch to the tab tracker view
+function switchToTabTracker() {
+    document.getElementById("mainMenu").style.display = "none";
+    document.getElementById("tabTrackerSection").style.display = "block";
+    document.getElementById("backArrow").style.display = "block";
 
-// Function to update the display
-function updatePopupDisplay() {
+    // Save the current view in storage
+    chrome.storage.local.set({ currentView: "tabTracker" });
+
+    // Fetch the latest tab times when switching to the tracker
+    chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
+        const tabTimes = response.tabTimes || {};
+        synchronizeTabs(
+            tabTimes,
+            response.activeTabId,
+            response.activeStartTime
+        );
+    });
+}
+
+// Function to switch to the home menu view
+function switchToHome() {
+    document.getElementById("tabTrackerSection").style.display = "none";
+    document.getElementById("mainMenu").style.display = "block";
+    document.getElementById("backArrow").style.display = "none";
+
+    // Save the current view in storage
+    chrome.storage.local.set({ currentView: "home" });
+}
+
+// Back button logic to return to the main menu
+document.getElementById("backBtn").addEventListener("click", switchToHome);
+
+// Attach event listeners to switch between home menu and tab tracker
+document
+    .getElementById("tabTrackerBtn")
+    .addEventListener("click", switchToTabTracker);
+
+// Restore the last view when the popup is opened
+chrome.storage.local.get("currentView", (data) => {
+    const currentView = data.currentView || "tabTracker"; // Default to tab tracker if no value is found
+
+    if (currentView === "home") {
+        switchToHome();
+    } else {
+        switchToTabTracker();
+    }
+});
+
+// Synchronize and display tabs in the popup
+function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
     const tabsContainer = document.getElementById("tabsContainer");
     tabsContainer.innerHTML = ""; // Clear existing UI
+
+    if (!tabTimes || Object.keys(tabTimes).length === 0) {
+        tabsContainer.innerHTML =
+            "<tr><td colspan='3'>No tabs being tracked</td></tr>";
+        return;
+    }
 
     for (let tabId in tabTimes) {
         const tabInfo = tabTimes[tabId];
@@ -33,10 +85,10 @@ function updatePopupDisplay() {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-      <td class="tab-info">${tabInfo.title}</td>
-      <td>${tabTime}</td>
-      <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
-    `;
+          <td class="tab-info">${tabInfo.title}</td>
+          <td>${tabTime}</td>
+          <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
+      `;
         tabsContainer.appendChild(row);
     }
 
@@ -55,67 +107,45 @@ function closeTab(tabId) {
     chrome.tabs.remove(tabId, () => {
         // Send a message directly to the background script to update tab times and UI
         chrome.runtime.sendMessage({ action: "removeTab", tabId }, () => {
-            // Fetch the updated tabTimes and refresh the UI
             chrome.runtime.sendMessage(
                 { action: "getTabTimes" },
                 (response) => {
-                    tabTimes = response.tabTimes;
-                    updatePopupDisplay(); // Refresh the UI after receiving the updated tab list
+                    const tabTimes = response.tabTimes || {};
+                    synchronizeTabs(
+                        tabTimes,
+                        response.activeTabId,
+                        response.activeStartTime
+                    ); // Refresh the UI
                 }
             );
         });
     });
 }
 
-// Force synchronization with open tabs
-function synchronizeTabs() {
-    chrome.tabs.query({}, function (tabs) {
-        // Create a new object based on current open tabs
-        const currentTabs = {};
-        tabs.forEach((tab) => {
-            if (tabTimes[tab.id]) {
-                currentTabs[tab.id] = tabTimes[tab.id];
-            } else {
-                currentTabs[tab.id] = { title: tab.title, timeSpent: 0 };
-            }
-        });
-
-        tabTimes = currentTabs;
-        updatePopupDisplay(); // Refresh the UI with the synchronized tab data
-    });
-}
-
-// Fetch tab times from the background script and display them
-chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
-    tabTimes = response.tabTimes;
-    activeTabId = response.activeTabId;
-    activeStartTime = response.activeStartTime;
-
-    // Synchronize with the currently open tabs to remove any closed tabs
-    synchronizeTabs();
-});
-
-// Attach event listener for "Close All Tabs" button
-document.getElementById("closeAllBtn").addEventListener("click", closeAllTabs);
-
-// Listen for tab removal events from the background script
-chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === "tabRemoved") {
-        chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
-            tabTimes = response.tabTimes;
-            updatePopupDisplay(); // Refresh the UI after a tab is removed
-        });
-    }
-});
-
 // Function to close all tabs
 function closeAllTabs() {
     const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
     chrome.tabs.remove(tabIds, () => {
         tabTimes = {}; // Clear all tracked tabs
-        updatePopupDisplay(); // Refresh the UI
+        synchronizeTabs({}, null, null); // Refresh the UI
     });
 }
 
-// Set an interval to update the UI every second
-setInterval(updatePopupDisplay, 1000);
+// Attach event listener for "Close All Tabs" button
+document.getElementById("closeAllBtn").addEventListener("click", closeAllTabs);
+
+// Set an interval to update the UI every second while in the tab tracker
+setInterval(() => {
+    if (
+        document.getElementById("tabTrackerSection").style.display === "block"
+    ) {
+        chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
+            const tabTimes = response.tabTimes || {};
+            synchronizeTabs(
+                tabTimes,
+                response.activeTabId,
+                response.activeStartTime
+            );
+        });
+    }
+}, 1000);

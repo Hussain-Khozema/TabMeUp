@@ -7,20 +7,36 @@
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-        <h3>Tracked Tabs</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tab</th>
-                    <th>Time</th>
-                    <th>Close</th>
-                </tr>
-            </thead>
-            <tbody id="tabsContainer"></tbody>
-        </table>
+        <!-- Back Arrow (Hidden on the Home Menu) -->
+        <div id="backArrow" style="display: none">
+            <button id="backBtn" class="back-btn">&larr; Back</button>
+        </div>
 
-        <div id="closeAllContainer">
-            <button id="closeAllBtn">Close All Tabs</button>
+        <!-- Main Menu -->
+        <div id="mainMenu">
+            <h3>Main Menu</h3>
+            <ul>
+                <li><button id="tabTrackerBtn">Tab Tracker</button></li>
+            </ul>
+        </div>
+
+        <!-- Tab Tracker Section (Initially Hidden) -->
+        <div id="tabTrackerSection" style="display: none">
+            <h3>Tracked Tabs</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tab</th>
+                        <th>Time</th>
+                        <th>Close</th>
+                    </tr>
+                </thead>
+                <tbody id="tabsContainer"></tbody>
+            </table>
+
+            <div id="closeAllContainer">
+                <button id="closeAllBtn">Close All Tabs</button>
+            </div>
         </div>
 
         <script src="popup.js"></script>

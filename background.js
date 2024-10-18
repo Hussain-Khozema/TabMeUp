@@ -116,6 +116,9 @@ chrome.runtime.onConnect.addListener((port) => {
             }
             sendResponse(); // Ensure the response is sent back
         } else if (request.action === "getTabTimes") {
+            if (activeStartTime === null && activeTabId !== null) {
+                activeStartTime = Date.now(); // Set start time to now if it's not set
+            }
             updateActiveTabTime();
             sendResponse({ tabTimes, activeTabId, activeStartTime });
         }
