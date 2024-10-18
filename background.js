@@ -5,6 +5,7 @@ let activeStartTime = null;
 // Clear tabTimes when the extension starts or is reloaded
 chrome.runtime.onStartup.addListener(() => {
   tabTimes = {};  // Clear all previously tracked times
+  trackExistingTabs();  // Track currently open tabs
 });
 
 // Function to track the time of the active tab
@@ -36,6 +37,9 @@ function updateTabTitle(tabId) {
 // Function to track existing tabs and their time
 function trackExistingTabs() {
   chrome.tabs.query({}, function (tabs) {
+    // Clear any old data before tracking
+    tabTimes = {};
+
     tabs.forEach((tab) => {
       if (!tabTimes[tab.id]) {
         tabTimes[tab.id] = { title: tab.title, timeSpent: 0 };
