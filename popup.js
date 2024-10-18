@@ -11,9 +11,26 @@ function msToTime(duration) {
     return hours + ":" + minutes + ":" + seconds;
 }
 
+// Function to load an HTML file into a div
+function loadHtml(url, elementId) {
+    fetch(url)
+        .then((response) => response.text())
+        .then((html) => {
+            document.getElementById(elementId).innerHTML = html;
+
+            // Attach event listeners after the HTML is loaded
+            document
+                .getElementById("tabTrackerBtn")
+                .addEventListener("click", switchToTabTracker);
+        })
+        .catch((error) => {
+            console.error("Error loading HTML:", error);
+        });
+}
+
 // Function to switch to the tab tracker view
 function switchToTabTracker() {
-    document.getElementById("mainMenu").style.display = "none";
+    document.getElementById("content").style.display = "none";
     document.getElementById("tabTrackerSection").style.display = "block";
     document.getElementById("backArrow").style.display = "block";
 
@@ -34,8 +51,11 @@ function switchToTabTracker() {
 // Function to switch to the home menu view
 function switchToHome() {
     document.getElementById("tabTrackerSection").style.display = "none";
-    document.getElementById("mainMenu").style.display = "block";
     document.getElementById("backArrow").style.display = "none";
+    document.getElementById("content").style.display = "block";
+
+    // Load the main menu HTML dynamically
+    loadHtml("mainMenu.html", "content");
 
     // Save the current view in storage
     chrome.storage.local.set({ currentView: "home" });
@@ -43,11 +63,6 @@ function switchToHome() {
 
 // Back button logic to return to the main menu
 document.getElementById("backBtn").addEventListener("click", switchToHome);
-
-// Attach event listeners to switch between home menu and tab tracker
-document
-    .getElementById("tabTrackerBtn")
-    .addEventListener("click", switchToTabTracker);
 
 // Restore the last view when the popup is opened
 chrome.storage.local.get("currentView", (data) => {
@@ -85,10 +100,10 @@ function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td class="tab-info">${tabInfo.title}</td>
-          <td>${tabTime}</td>
-          <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
-      `;
+        <td class="tab-info">${tabInfo.title}</td>
+        <td>${tabTime}</td>
+        <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
+    `;
         tabsContainer.appendChild(row);
     }
 
