@@ -64,10 +64,13 @@ loadTabTrackerData();
 
 // Function to close all tabs
 function closeAllTabs() {
-    const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
-    chrome.tabs.remove(tabIds, () => {
-        tabTimes = {}; // Clear all tracked tabs
-        synchronizeTabs({}, null, null); // Refresh the UI
+    chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
+        const tabTimes = response.tabTimes || {};
+        const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
+        chrome.tabs.remove(tabIds, () => {
+            tabTimes = {}; // Clear all tracked tabs
+            synchronizeTabs({}, null, null); // Refresh the UI
+        });
     });
 }
 
