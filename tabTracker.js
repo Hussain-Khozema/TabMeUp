@@ -20,6 +20,8 @@ function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
         return;
     }
 
+    let activeTabRow = null;
+
     for (let tabId in tabTimes) {
         const tabInfo = tabTimes[tabId];
         let timeSpent = tabInfo.timeSpent;
@@ -38,7 +40,18 @@ function synchronizeTabs(tabTimes, activeTabId, activeStartTime) {
             <td>${tabTime}</td>
             <td><button class="close-btn" data-tabid="${tabId}">Close</button></td>
         `;
-        tabsContainer.appendChild(row);
+
+        // If this is the active tab, store it separately
+        if (parseInt(tabId) === activeTabId) {
+            activeTabRow = row;
+        } else {
+            tabsContainer.appendChild(row);
+        }
+    }
+
+    // If there is an active tab, prepend it to the container
+    if (activeTabRow) {
+        tabsContainer.insertBefore(activeTabRow, tabsContainer.firstChild);
     }
 
     // Attach event listeners for the "Close" buttons
