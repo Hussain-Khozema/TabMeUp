@@ -77,14 +77,21 @@ loadTabTrackerData();
 
 // Function to close all tabs
 function closeAllTabs() {
-    chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
-        const tabTimes = response.tabTimes || {};
-        const tabIds = Object.keys(tabTimes).map((tabId) => parseInt(tabId));
-        chrome.tabs.remove(tabIds, () => {
-            tabTimes = {}; // Clear all tracked tabs
-            synchronizeTabs({}, null, null); // Refresh the UI
+    const confirmation = window.confirm(
+        "Are you sure you want to close all tabs?"
+    );
+    if (confirmation) {
+        chrome.runtime.sendMessage({ action: "getTabTimes" }, (response) => {
+            const tabTimes = response.tabTimes || {};
+            const tabIds = Object.keys(tabTimes).map((tabId) =>
+                parseInt(tabId)
+            );
+            chrome.tabs.remove(tabIds, () => {
+                tabTimes = {}; // Clear all tracked tabs
+                synchronizeTabs({}, null, null); // Refresh the UI
+            });
         });
-    });
+    }
 }
 
 // Attach event listener for "Close All Tabs" button
