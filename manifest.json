@@ -16,7 +16,17 @@
     },
     "web_accessible_resources": [
         {
-            "resources": ["mainMenu.html", "sessionsTracker.html"],
+            "resources": [
+                "mainMenu.html",
+                "sessionsTracker.html",
+                "tabTracker.html",
+                "tabTracker.js",
+                "tabTracker.css",
+                "sessionsTracker.js",
+                "sessionsTracker.css",
+                "mainMenu.js",
+                "mainMenu.css"
+            ],
             "matches": ["<all_urls>"]
         }
     ]
